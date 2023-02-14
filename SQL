@@ -1,0 +1,36 @@
+-- Create the users table
+CREATE TABLE users (
+    user_id INT,
+    product_id INT,
+    transaction_date DATE
+);
+
+-- Insert data into the users table
+INSERT INTO users (user_id, product_id, transaction_date)
+VALUES
+    (1, 101, '2020-02-12'),
+    (2, 105, '2020-02-13'),
+    (1, 111, '2020-02-14'),
+    (3, 121, '2020-02-15'),
+    (1, 101, '2020-02-16'),
+    (2, 105, '2020-02-17'),
+    (4, 105, '2020-02-15'),
+    (3, 105, '2020-02-15');
+
+-- Query to retrieve the desired output
+WITH super_users AS (
+    SELECT user_id, product_id, transaction_date,
+           ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY product_id DESC, transaction_date DESC) AS row_num,
+           COUNT(*) OVER (PARTITION BY user_id) AS transaction_count
+    FROM users
+),
+user_dates AS (
+    SELECT user_id, MAX(transaction_date) AS transaction_date
+    FROM super_users
+    WHERE row_num = 1 AND transaction_count >= 2
+    GROUP BY user_id
+)
+SELECT u.user_id, COALESCE(user_dates.transaction_date, 'NULL') AS superuser_date
+FROM (SELECT DISTINCT user_id FROM users) u
+LEFT JOIN user_dates ON u.user_id = user_dates.user_id
+ORDER BY u.user_id;
